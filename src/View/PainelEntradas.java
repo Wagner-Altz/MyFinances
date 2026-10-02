@@ -6,6 +6,7 @@ import Model.Contas;
 import Model.Entradas;
 import java.awt.*;
 import java.util.List;
+import java.util.Locale;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableModel;
@@ -165,29 +166,58 @@ public class PainelEntradas extends JPanel {
         List<Entradas> lista = entradasController.listarTodas();
         Entradas e = lista.get(linha);
         idSelecionado = e.getId();
-        comboConta.setSelectedItem(e.getContaAssociada());
-        campoValor.setText(String.valueOf(e.getValorRecebido()));
+        selecionarConta(e.getContaAssociada());
+        campoValor.setText(String.format(Locale.US, "%.2f", e.getValorRecebido()));
         campoRemetente.setText(e.getRemetente());
         campoMotivo.setText(e.getMotivo());
+    }
+
+    private void selecionarConta(String tipo) {
+        for (int i = 1; i < comboConta.getItemCount(); i++) {
+            if (comboConta.getItemAt(i).equalsIgnoreCase(tipo)) {
+                comboConta.setSelectedIndex(i);
+                return;
+            }
+        }
+        comboConta.setSelectedIndex(0);
+    }
+
+    private Double lerValor() {
+        double valor;
+        try {
+            valor = Double.parseDouble(campoValor.getText().trim().replace(',', '.'));
+        } catch (NumberFormatException e) {
+            mostrarErro("Valor invalido.");
+            return null;
+        }
+        if (!(valor > 0) || Double.isInfinite(valor)) {
+            mostrarErro("O valor deve ser positivo.");
+            return null;
+        }
+        return valor;
     }
 
     private void registarEntrada() {
         if (!validarCampos()) {
             return;
         }
+        Double valor = lerValor();
+        if (valor == null) {
+            return;
+        }
         try {
             String conta = comboConta.getSelectedItem().toString();
-            double valor = Double.parseDouble(campoValor.getText().trim());
-            boolean sucesso = entradasController.registrarEntrada(valor, conta, campoRemetente.getText().trim(), campoMotivo.getText().trim());
-            if (sucesso) {
+            String erro = entradasController.registrarEntrada(valor, conta, campoRemetente.getText().trim(), campoMotivo.getText().trim());
+            if (erro == null) {
                 carregarTabela();
                 limparCampos();
                 mostrarSucesso("Entrada registada com sucesso.");
             } else {
-                mostrarErro("Conta nao encontrada.");
+                mostrarErro(erro);
             }
-        } catch (NumberFormatException e) {
-            mostrarErro("Valor invalido.");
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            mostrarErro("Erro inesperado: " + ex.getMessage());
         }
     }
 
@@ -199,19 +229,23 @@ public class PainelEntradas extends JPanel {
         if (!validarCampos()) {
             return;
         }
+        Double valor = lerValor();
+        if (valor == null) {
+            return;
+        }
         try {
             String conta = comboConta.getSelectedItem().toString();
-            double valor = Double.parseDouble(campoValor.getText().trim());
-            boolean sucesso = entradasController.editarEntrada(idSelecionado, valor, conta, campoRemetente.getText().trim(), campoMotivo.getText().trim());
-            if (sucesso) {
+            String erro = entradasController.editarEntrada(idSelecionado, valor, conta, campoRemetente.getText().trim(), campoMotivo.getText().trim());
+            if (erro == null) {
                 carregarTabela();
                 limparCampos();
                 mostrarSucesso("Entrada editada com sucesso.");
             } else {
-                mostrarErro("Erro ao editar entrada.");
+                mostrarErro(erro);
             }
-        } catch (NumberFormatException e) {
-            mostrarErro("Valor invalido.");
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            mostrarErro("Erro inesperado: " + ex.getMessage());
         }
     }
 
@@ -221,15 +255,21 @@ public class PainelEntradas extends JPanel {
             return;
         }
         int confirmacao = JOptionPane.showConfirmDialog(this, "Tem certeza que deseja remover esta entrada?", "Remover", JOptionPane.YES_NO_OPTION);
-        if (confirmacao == JOptionPane.YES_OPTION) {
-            boolean sucesso = entradasController.removerEntrada(idSelecionado);
-            if (sucesso) {
+        if (confirmacao != JOptionPane.YES_OPTION) {
+            return;
+        }
+        try {
+            String erro = entradasController.removerEntrada(idSelecionado);
+            if (erro == null) {
                 carregarTabela();
                 limparCampos();
                 mostrarSucesso("Entrada removida com sucesso.");
             } else {
-                mostrarErro("Erro ao remover entrada.");
+                mostrarErro(erro);
             }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            mostrarErro("Erro inesperado: " + ex.getMessage());
         }
     }
 

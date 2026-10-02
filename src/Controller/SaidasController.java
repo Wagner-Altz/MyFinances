@@ -8,9 +8,9 @@ import java.util.List;
 
 public class SaidasController {
 
-    private List<Saidas> saidas;
-    private Repositorio repositorio;
-    private ContasController contasController;
+    private final List<Saidas> saidas;
+    private final Repositorio repositorio;
+    private final ContasController contasController;
 
     public SaidasController(ContasController contasController) {
         this.contasController = contasController;
@@ -18,31 +18,46 @@ public class SaidasController {
         this.saidas = repositorio.carregarSaidas();
     }
 
-    public String gerarId() {
-        int ano = LocalDate.now().getYear();
-        int sequencia = saidas.size() + 1;
-        return String.format("SAI-%d%03d", ano, sequencia);
+    private String gerarId() {
+        String prefixo = "SAI-" + LocalDate.now().getYear();
+        int max = 0;
+        for (Saidas s : saidas) {
+            String id = s.getId();
+            if (id != null && id.startsWith(prefixo)) {
+                try {
+                    max = Math.max(max, Integer.parseInt(id.substring(prefixo.length())));
+                } catch (NumberFormatException ex) {
+                    // ID malformado: ignora
+                }
+            }
+        }
+        return String.format("%s%03d", prefixo, max + 1);
     }
 
-    public boolean registarSaidas(double valorRetirado, String motivo, String contaAssociada) {
-        List<Contas> resultado = contasController.buscaPorTipo(contaAssociada);
-        if (resultado.isEmpty()) {
-            return false;
+    /**
+     * Devolve null em caso de sucesso, ou a mensagem de erro.
+     */
+    public String registarSaidas(double valorRetirado, String motivo, String contaAssociada) {
+        if (!(valorRetirado > 0) || Double.isInfinite(valorRetirado)) {
+            return "Valor invalido.";
         }
 
-        Contas conta = resultado.get(0);
+        Contas conta = contasController.buscaPorTipo(contaAssociada);
+        if (conta == null) {
+            return "Conta nao encontrada.";
+        }
+
         if (conta.getSaldoConta() < valorRetirado) {
-            return false;
+            return "Saldo insuficiente.";
         }
 
         conta.setSaldoConta(conta.getSaldoConta() - valorRetirado);
         contasController.editarContas(conta.getTipoConta(), conta);
 
-        String id = gerarId();
-        Saidas s = new Saidas(id, valorRetirado, motivo, contaAssociada);
+        Saidas s = new Saidas(gerarId(), valorRetirado, motivo, contaAssociada);
         saidas.add(s);
         repositorio.salvarSaidas(saidas);
-        return true;
+        return null;
     }
 
     public Saidas buscaPorId(String id) {
@@ -58,26 +73,33 @@ public class SaidasController {
         return saidas;
     }
 
-    public boolean editarSaidas(String id, double novoValorRetirado, String novoMotivo, String novaContaAssociada) {
-        Saidas antiga = buscaPorId(id);
-        if (antiga == null) {
-            return false;
+    public String editarSaidas(String id, double novoValorRetirado, String novoMotivo, String novaContaAssociada) {
+        if (!(novoValorRetirado > 0) || Double.isInfinite(novoValorRetirado)) {
+            return "Valor invalido.";
         }
 
-        Contas contaAntiga = contasController.buscaPorTipo(antiga.getContaAssociada()).stream().findFirst().orElse(null);
+        Saidas antiga = buscaPorId(id);
+        if (antiga == null) {
+            return "Saida nao encontrada.";
+        }
+
+        Contas contaAntiga = contasController.buscaPorTipo(antiga.getContaAssociada());
+        Contas contaNova = contasController.buscaPorTipo(novaContaAssociada);
+        if (contaNova == null) {
+            return "Conta nao encontrada.";
+        }
+
+        double disponivel = contaNova.getSaldoConta();
+        if (contaAntiga == contaNova) {
+            disponivel += antiga.getValorRetirado();
+        }
+        if (disponivel < novoValorRetirado) {
+            return "Saldo insuficiente.";
+        }
+
         if (contaAntiga != null) {
             contaAntiga.setSaldoConta(contaAntiga.getSaldoConta() + antiga.getValorRetirado());
             contasController.editarContas(contaAntiga.getTipoConta(), contaAntiga);
-        }
-
-        List<Contas> resultado = contasController.buscaPorTipo(novaContaAssociada);
-        if (resultado.isEmpty()) {
-            return false;
-        }
-
-        Contas contaNova = resultado.get(0);
-        if (contaNova.getSaldoConta() < novoValorRetirado) {
-            return false;
         }
 
         contaNova.setSaldoConta(contaNova.getSaldoConta() - novoValorRetirado);
@@ -88,26 +110,32 @@ public class SaidasController {
         antiga.setContaAssociada(novaContaAssociada);
 
         repositorio.salvarSaidas(saidas);
-        return true;
+        return null;
     }
 
-    public boolean removerSaidas(String id) {
+    public String removerSaidas(String id) {
         Saidas s = buscaPorId(id);
         if (s == null) {
-            return false;
+            return "Saida nao encontrada.";
         }
 
-        List<Contas> resultado = contasController.buscaPorTipo(s.getContaAssociada());
-        if (resultado.isEmpty()) {
-            return false;
+        Contas conta = contasController.buscaPorTipo(s.getContaAssociada());
+        if (conta != null) {
+            conta.setSaldoConta(conta.getSaldoConta() + s.getValorRetirado());
+            contasController.editarContas(conta.getTipoConta(), conta);
         }
-
-        Contas conta = resultado.get(0);
-        conta.setSaldoConta(conta.getSaldoConta() + s.getValorRetirado());
-        contasController.editarContas(conta.getTipoConta(), conta);
 
         saidas.remove(s);
         repositorio.salvarSaidas(saidas);
-        return true;
+        return null;
+    }
+
+    public boolean existeParaConta(String tipoConta) {
+        for (Saidas s : saidas) {
+            if (s.getContaAssociada().equalsIgnoreCase(tipoConta)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

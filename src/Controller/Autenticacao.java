@@ -1,4 +1,4 @@
-package Controller;
+/**package Controller;
 
 import Dao.Repositorio;
 
@@ -11,8 +11,8 @@ public class Autenticacao {
         this.logado = false;
     }
     
-    public boolean login(String userName, String password){
-        if (userName.equals("Wagner") && password.equals("password") ){
+   public boolean login(String userName, String password){
+        if (userName.equals("Van") && password.equals("123456") ){
             logado = true;
             return true;
         }
@@ -27,3 +27,4 @@ public class Autenticacao {
         return logado;
     }
 }
+**/

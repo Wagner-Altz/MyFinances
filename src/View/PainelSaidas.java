@@ -10,6 +10,7 @@ import java.awt.Cursor;
 import java.awt.FlowLayout;
 import java.awt.GridLayout;
 import java.util.List;
+import java.util.Locale;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
@@ -174,28 +175,57 @@ public class PainelSaidas extends JPanel {
         List<Saidas> lista = saidasController.listarTodas();
         Saidas s = lista.get(linha);
         idSelecionado = s.getId();
-        comboConta.setSelectedItem(s.getContaAssociada());
-        campoValor.setText(String.valueOf(s.getValorRetirado()));
+        selecionarConta(s.getContaAssociada());
+        campoValor.setText(String.format(Locale.US, "%.2f", s.getValorRetirado()));
         campoMotivo.setText(s.getMotivo());
+    }
+
+    private void selecionarConta(String tipo) {
+        for (int i = 1; i < comboConta.getItemCount(); i++) {
+            if (comboConta.getItemAt(i).equalsIgnoreCase(tipo)) {
+                comboConta.setSelectedIndex(i);
+                return;
+            }
+        }
+        comboConta.setSelectedIndex(0);
+    }
+
+    private Double lerValor() {
+        double valor;
+        try {
+            valor = Double.parseDouble(campoValor.getText().trim().replace(',', '.'));
+        } catch (NumberFormatException e) {
+            mostrarErro("Valor invalido.");
+            return null;
+        }
+        if (!(valor > 0) || Double.isInfinite(valor)) {
+            mostrarErro("O valor deve ser positivo.");
+            return null;
+        }
+        return valor;
     }
 
     private void registarSaida() {
         if (!validarCampos()) {
             return;
         }
+        Double valor = lerValor();
+        if (valor == null) {
+            return;
+        }
         try {
             String conta = comboConta.getSelectedItem().toString();
-            double valor = Double.parseDouble(campoValor.getText().trim());
-            boolean sucesso = saidasController.registarSaidas(valor, campoMotivo.getText().trim(), conta);
-            if (sucesso) {
+            String erro = saidasController.registarSaidas(valor, campoMotivo.getText().trim(), conta);
+            if (erro == null) {
                 carregarTabela();
                 limparCampos();
                 mostrarSucesso("Saida registada com sucesso.");
             } else {
-                mostrarErro("Saldo insuficiente ou conta nao encontrada.");
+                mostrarErro(erro);
             }
-        } catch (NumberFormatException e) {
-            mostrarErro("Valor invalido.");
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            mostrarErro("Erro inesperado: " + ex.getMessage());
         }
     }
 
@@ -207,19 +237,23 @@ public class PainelSaidas extends JPanel {
         if (!validarCampos()) {
             return;
         }
+        Double valor = lerValor();
+        if (valor == null) {
+            return;
+        }
         try {
             String conta = comboConta.getSelectedItem().toString();
-            double valor = Double.parseDouble(campoValor.getText().trim());
-            boolean sucesso = saidasController.editarSaidas(idSelecionado, valor, campoMotivo.getText().trim(), conta);
-            if (sucesso) {
+            String erro = saidasController.editarSaidas(idSelecionado, valor, campoMotivo.getText().trim(), conta);
+            if (erro == null) {
                 carregarTabela();
                 limparCampos();
                 mostrarSucesso("Saida editada com sucesso.");
             } else {
-                mostrarErro("Saldo insuficiente ou conta nao encontrada.");
+                mostrarErro(erro);
             }
-        } catch (NumberFormatException e) {
-            mostrarErro("Valor invalido.");
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            mostrarErro("Erro inesperado: " + ex.getMessage());
         }
     }
 
@@ -229,15 +263,21 @@ public class PainelSaidas extends JPanel {
             return;
         }
         int confirmacao = JOptionPane.showConfirmDialog(this, "Tem certeza que deseja remover esta saida?", "Remover", JOptionPane.YES_NO_OPTION);
-        if (confirmacao == JOptionPane.YES_OPTION) {
-            boolean sucesso = saidasController.removerSaidas(idSelecionado);
-            if (sucesso) {
+        if (confirmacao != JOptionPane.YES_OPTION) {
+            return;
+        }
+        try {
+            String erro = saidasController.removerSaidas(idSelecionado);
+            if (erro == null) {
                 carregarTabela();
                 limparCampos();
                 mostrarSucesso("Saida removida com sucesso.");
             } else {
-                mostrarErro("Erro ao remover saida.");
+                mostrarErro(erro);
             }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            mostrarErro("Erro inesperado: " + ex.getMessage());
         }
     }
 
