@@ -1,27 +1,36 @@
-GestaoDeContas
-Sistema de gestão financeira pessoal desenvolvido em Java, com persistência em ficheiro e arquitetura MVC + DAO, construído em NetBeans.
-Funcionalidades
-Gestão de Contas — CRUD completo (criar, listar, editar, remover)
-Gestão de Transações — CRUD completo de entradas e saídas, com reflexo direto no saldo da conta associada
-Gestão de Usuário — controlo de dados do usuário do sistema
-Arquitetura
-O projeto segue o fluxo padrão Model → DAO → Controller → View:
-Código
-Camadas
-Model — representa as entidades do domínio: usuário, contas, entradas e saídas.
-Dao — camada de persistência, responsável por ler e gravar os dados em ficheiro através da classe Repositorio.
-Controller — contém a lógica de negócio: validação, registro, edição e remoção de contas e transações, e a atualização dos saldos.
-View — interfaces gráficas em Swing, responsáveis pela interação com o usuário.
-Persistência
-Os dados são armazenados em ficheiro, sem uso de banco de dados relacional. A leitura e escrita são centralizadas na camada Dao.
-Como executar
-Abrir o projeto no NetBeans
-Executar a classe Main
-O sistema cria/usa o ficheiro de dados local automaticamente
-Tecnologias
-Java
-Swing (interface gráfica)
-Persistência em ficheiro (sem JDBC/SGBD)
-NetBeans
-Status do projeto
-Em desenvolvimento — CRUD de contas e transações implementados; lógica de saldo entre entradas/saídas em ajuste.
+# myFinances
+
+Aplicação desktop em Java Swing para gestão de finanças pessoais: contas, entradas e saídas de dinheiro, com saldos sempre consistentes com o histórico de movimentos.
+
+## Funcionalidades
+
+- **Contas:** criar, editar e remover, com tipo único por conta (sem distinção de maiúsculas).
+- **Entradas:** registar, editar e remover; o saldo da conta acompanha cada operação.
+- **Saídas:** registar, editar e remover; recusadas se o saldo for insuficiente.
+- **Resumo** e **Histórico** de movimentos.
+- Dados guardados em ficheiro, sem necessidade de base de dados.
+
+## Regras de negócio
+
+- O saldo de uma conta nunca fica negativo: saídas são recusadas sem saldo, e remover ou editar uma entrada é recusado se a conta ficasse negativa.
+- Valores têm de ser positivos (aceita vírgula ou ponto decimal).
+- Uma conta com movimentos associados não pode ser removida nem mudar de tipo.
+- Os movimentos têm identificadores sequenciais por ano (`ENT-2026001`, `SAI-2026001`), que nunca se repetem após remoções.
+- Editar um movimento é atómico: ou todas as validações passam e os saldos são actualizados, ou nada muda.
+
+## Arquitectura
+
+Padrão **MVC + DAO**:
+
+| Pacote | Responsabilidade |
+|---|---|
+| `Model` | Entidades: `Contas`, `Entradas`, `Saidas`, `Usuario` |
+| `View` | Interface Swing (`PainelPrincipal`, `PainelContas`, `PainelEntradas`, `PainelSaidas`, ...) |
+| `Controller` | Regras de negócio e validações |
+| `Dao` | `Repositorio`: persistência por serialização em `dados/*.dat` |
+
+Os controllers devolvem `null` em caso de sucesso, ou a mensagem de erro, que a vista apresenta ao utilizador.
+
+## Autor
+
+Wagner, estudante universitário. [curso / Universidade Eduardo Mondlane]
